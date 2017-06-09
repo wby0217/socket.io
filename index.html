@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>io</title>
+  <link rel="stylesheet" href="/bootstrap/dist/css/bootstrap.css">
+  <style>
+    .list-group-item{cursor: pointer;}
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="row">
+    <div class="col-md-10 col-md-offset-1">
+      <div class="panel panel-success">
+        <div class="panel-heading">
+          <h3 class="text-center">
+            <button onclick="jionRoom('red')" class="btn btn-danger">红房间</button>
+            <button onclick="jionRoom('green')" class="btn btn-success">绿房间</button>
+          </h3>
+        </div>
+        <div class="panel-body">
+          <ul id="messges" onclick="sellectUser(event)">
+            <!--<li class="list-group-item"></li>-->
+          </ul>
+        </div>
+        <div class="panel-footer">
+          <form action="" onsubmit="handleSubmit(event)">
+            <div class="form-group row">
+              <div class="col-md-10">
+              <input type="text" id="content" class="form-control">
+              </div>
+              <div class="col-md-2">
+                <button class="btn btn-primary" type="submit" >发送</button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+  let socket = io('/');
+  socket.on('connect',function() {
+      socket.emit('getAllMessages');
+      console.log('连接成功')
+      //socket.send('你好')
+  });
+  function getm(msgObj) {
+    return `<span class="user">${msgObj.username}</span>:${msgObj.content} <button class="btn btn-danger btn-sm btndelete" data-id="${msgObj._id}">删除</button> <span class="pull-right">${msgObj.createAt}</span>`
+  }
+  socket.on('message',function(msgObj) {
+      let messges = document.querySelector('#messges');
+      let li = document.createElement('li');
+      li.innerHTML = getm(msgObj);
+      li.className = 'list-group-item';
+      messges.appendChild(li);
+      //console.log(msg)
+      //socket.send('你好')
+  });
+  function handleSubmit(event) {
+      event.preventDefault();
+      let contentInput = document.querySelector('#content');//获取到输入框的DOM元素
+      let content  = contentInput.value;//获取输入框的值
+      socket.send(content);//把消息发送给服务器
+      contentInput.value = '';
+  }
+  function sellectUser(event) {
+      if(event.target.className == 'user') {
+          let username = event.target.innerText;
+          let contentInput = document.querySelector('#content');
+          contentInput.value = `@${username}`
+      }else if(/(^| +)btndelete($| +)/.test(event.target.className)){
+          let id = event.target.dataset.id;
+          socket.emit('delete',id);
+      }
+  }
+
+  socket.on('allMessages',function(messages){
+      messages = messages.map(message=>(
+          `<li class="list-group-item">${getm(message)}</li>`
+      ));
+      let html = messages.join('');
+      let messges = document.querySelector('#messges');
+      messges.innerHTML = html;
+  })
+
+  function jionRoom(roomName){
+      socket.emit('join',roomName);
+  }
+
+  socket.on('deleted',function(id){
+      let li = document.getElementById(id);
+      li.parentNode.removeChild(li);
+  });
+
+</script>
+</body>
+</html>
